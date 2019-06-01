@@ -1,0 +1,31 @@
+﻿@model DemoUsuarios.Models.UsuarioModels.Usuario
+@{
+    ViewBag.Title = "Create";
+}
+
+<h2>Crear usuario</h2>
+
+
+@using (Html.BeginForm("Create", "Usuario", FormMethod.Post))
+{
+    <div class="row">
+        <div class="col-md-12">
+            @Html.LabelFor(d => d.Username)
+            @Html.TextBoxFor(d => d.Username, "", new { @class = "form-control" })
+            @Html.ValidationMessageFor(d => d.Username, null, new { @class = "danger" })
+            @Html.LabelFor(d => d.Password)
+            @Html.TextBoxFor(d => d.Password, "", new { @class = "form-control", @type = "password" })
+            @Html.LabelFor(d => d.IdPersona, "Persona", htmlAttributes: new { @class = "control-label" })
+            @Html.DropDownListFor(model => model.IdPersona, new SelectList(Model.Persona, "IdPersona", "Nombres"), new { @class = "form-control" })
+    </div>
+
+    <br />
+    <div class="row">
+        <div class="col-md-12" style="padding:30px;">
+            <input type="submit" value="Guardar" class="btn btn-primary" />
+            <input type="button" value="Cancelar" class="btn btn-primary" onclick="location.href='@Url.Action("Usuario","Usuario")'" />
+        </div>
+    </div>
+    </div>
+}
+
