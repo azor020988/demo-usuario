@@ -8,160 +8,107 @@ using DemoUsuarios.Models.PersonaModels;
 using System.Data.Entity;
 using DemoUsuarios.Models;
 using System.Collections;
+using Newtonsoft.Json;
 
 namespace DemoUsuarios.Controllers
 
 {
     public class UsuarioController : Controller
     {
+        private DemoUsuariosEntities db = new DemoUsuariosEntities();
         // GET: Usuario
         public ActionResult Usuario()
         {
-            
-            List<Usuario> listaUsuarios;
-            
+         
+                List<Personas> ListaPer = db.Personas.ToList();
+                ViewBag.ListPersona = new SelectList(ListaPer, "IdPersona", "Nombres");
 
-            using (DemoUsuariosEntities db = new DemoUsuariosEntities())
-            {
+                List<Usuarios> ListUser = db.Usuarios.ToList();
+                ViewBag.ListaUsuarios = ListUser;
+        
 
-
-                listaUsuarios = (from d in db.Usuarios
-                                 select new Usuario
-                                 {
-                                     Id = d.Id,
-                                     Username = d.Username,
-                                     IdPersona = d.IdPersona
-
-                             
-                                               
-                                 }).ToList();
-
-            }
-
-            return View(listaUsuarios);
+            return View();
         }
 
-
-        public ActionResult Create()
+        public JsonResult GetUserById(int UserId)
         {
-           
-            Usuario usuarioModel = new Usuario();
-            using (DemoUsuariosEntities db = new DemoUsuariosEntities())
-            {
-                usuarioModel.Persona = (from d in db.Personas
-                                select new Persona
-                                {
-                                    IdPersona = d.IdPersona,
-                                    Nombres = d.Nombres
-                                }).ToList();
-            }
-                return View(usuarioModel);
-            
+         
+                Usuarios model = db.Usuarios.Where(u => u.Id == UserId).SingleOrDefault();
+                string value = string.Empty;
+                value = JsonConvert.SerializeObject(model, Formatting.Indented, new JsonSerializerSettings
+                {
+                    ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+                });
+                return Json(value, JsonRequestBehavior.AllowGet);
+                       
         }
-        [HttpPost]
-        public ActionResult Create(Usuario model)
+        public JsonResult SaveDataInDatabase(Usuario model)
         {
+            var result = false;
             try
             {
-                if (ModelState.IsValid)
+                //Actualiza Usuarios
+                if (model.Id > 0)
                 {
-                    using(DemoUsuariosEntities db = new DemoUsuariosEntities())
+
+                    Usuarios User = db.Usuarios.Find(model.Id);
+
+                    User.Username = model.Username;
+                    User.Password = FilterConfig.HASH256(model.Password);
+                    User.IdPersona = model.IdPersona;
+                    db.Entry(User).State = System.Data.Entity.EntityState.Modified;
+                    db.SaveChanges();
+                    result = true;
+
+                }
+                else
+                {
+                    //RegistraUsuarios
+                    if (string.IsNullOrEmpty(model.Username) || string.IsNullOrEmpty(model.Password) || model.IdPersona == 0)
                     {
-
-                        var usuarioExistente = db.Usuarios.FirstOrDefault(u => u.Username == model.Username) != null ? true : false;
-                        if (!usuarioExistente) { 
-
-                        var usuario = new Usuarios();
-                        usuario.Username = model.Username;
-                        usuario.Password = FilterConfig.HASH256 (model.Password);
-                        usuario.Habilitado = 1;
-                        usuario.IdPersona = model.IdPersona;
-                        db.Usuarios.Add(usuario);
-                        db.SaveChanges();
-
-                            return Redirect("~/Usuario/Usuario");
+                        result = false;
+                    }
+                    else
+                    { 
+                        var usuarioExiste = db.Usuarios.FirstOrDefault(u => u.Username == model.Username) != null ? true : false;
+                        if (!usuarioExiste)
+                        {
+                            Usuarios User = new Usuarios();
+                            User.Username = model.Username;
+                            User.Password = FilterConfig.HASH256(model.Password);
+                            User.Habilitado = 1;
+                            User.IdPersona = model.IdPersona;
+                            db.Usuarios.Add(User);
+                            db.SaveChanges();
+                            result = true;
                         }
-
                         else
                         {
-                            return Content("Usuario ya existe"); 
+                            result = false;
                         }
-
-                        
                     }
-                   
                 }
-                return View(model);
+
+                
             }
             catch(Exception ex)
             {
-                throw new Exception(ex.Message);
+                throw ex;
             }
-            
+            return Json(result, JsonRequestBehavior.AllowGet);
         }
-        public ActionResult Update(int id)
+
+        public JsonResult DeleteUser(int UserId)
         {
-            Usuario usuarioModel = new Usuario();
-
-            using (DemoUsuariosEntities db = new DemoUsuariosEntities())
-            {
-                var usuarios = db.Usuarios.Find(id);
-                usuarioModel.Username = usuarios.Username;
-                usuarioModel.Password = usuarios.Password;
-
-                usuarioModel.Persona =(from d in db.Personas
-                     select new Persona
-                     {
-
-                         IdPersona = d.IdPersona,
-                         Nombres = d.Nombres
-                     }).ToList();
+            bool result = false;
+            Usuarios User = db.Usuarios.Find(UserId);
+            if (User != null) { 
+            db.Usuarios.Remove(User);
+            db.SaveChanges();
+            result = true;
             }
-            return View(usuarioModel);
+            return Json(result, JsonRequestBehavior.AllowGet);
         }
 
-        [HttpPost]
-        public ActionResult Update(Usuario model)
-        {
-            try
-            {
-                if (ModelState.IsValid)
-                {
-                    using (DemoUsuariosEntities db = new DemoUsuariosEntities())
-                    {
-                         var usuarios = db.Usuarios.Find(model.Id);
-                        usuarios.Username = model.Username;
-                        usuarios.Password = model.Password;
-                        usuarios.Habilitado = model.Habilitado;
-                        usuarios.IdPersona = model.IdPersona;
-                        db.Entry(usuarios).State = System.Data.Entity.EntityState.Modified;
-                        db.SaveChanges();
-
-                    }
-                    return Redirect("~/Usuario/Usuario");
-                }
-                return View(model);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception(ex.Message);
-            }
-            
-        }
-        [HttpGet]
-        public ActionResult Eliminar(int id)
-        {
-            Usuario usuarioModel = new Usuario();
-
-            using (DemoUsuariosEntities db = new DemoUsuariosEntities())
-            {
-                
-                var usuarios = db.Usuarios.Find(id);
-                db.Usuarios.Remove(usuarios);
-                db.SaveChanges();
-                        
-            }
-            return Redirect("~/Usuario/Usuario");
-        }
     }
 }

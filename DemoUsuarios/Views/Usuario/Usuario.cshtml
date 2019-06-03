@@ -1,30 +1,37 @@
-﻿@model List<DemoUsuarios.Models.UsuarioModels.Usuario>
+﻿@model DemoUsuarios.Models.UsuarioModels.Usuario
 
 @{
     ViewBag.Title = "Usuario";
 }
 
 <h2>Lista de Usuarios</h2>
+
+<script src="~/Scripts/jquery-3.3.1.min.js"></script>
+<script src="~/Scripts/bootstrap.min.js"></script>
+<link href="~/Content/bootstrap.min.css" rel="stylesheet" />
+
 <div class="row">
-    <button type="button" class="btn btn-primary adicionar" onclick="location.href='@Url.Action("Create","Usuario")'">Nuevo</button>
+    @*<button type="button" class="btn btn-primary adicionar" onclick="location.href='@Url.Action("Create","Usuario")'">Nuevo</button>*@
+    <a href="#" class="btn btn-info" onclick="AddNewUser(0)">Registrar Usuario</a> <br /><br />
 </div>
 <div class="row">
+
     <table id="tblUsuarios" class="table table-striped table-bordered" style="width:100%">
         <thead>
             <tr>
                 <th>Usuario</th>
-                <th>Id Persona</th>
+                <th>Persona</th>
                 <th></th>
             </tr>
-            @foreach (var Elemento in Model)
+            @foreach (var Elemento in ViewBag.ListaUsuarios)
             {
                 <tr>
                     <td>@Elemento.Username</td>
-                    <td>@Elemento.IdPersona</td>
+                    <td>@Elemento.Personas.Nombres</td>
 
                     <td>
-                        <a class="btn btn-default" href="~/Usuario/Update/@Elemento.Id">Editar</a>
-                        <a class="btn btn-danger" href="~/Usuario/Eliminar/@Elemento.Id">Eliminar</a>
+                        <a class="btn btn-default" href="#" onclick="EditUsuario(@Elemento.Id)">Editar</a>
+                        <a class="btn btn-danger" href="#" onclick="DeleteUsuario(@Elemento.Id)">Eliminar</a>
                     </td>
                 </tr>
 
@@ -35,4 +42,135 @@
         <tfoot></tfoot>
     </table>
 
+    <div class="modal fade" id="MyModal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <a href="#" class="close" data-dismiss="modal">&times;</a>
+                    <h4 id="ModalTitle"></h4>
+                </div>
+                <div class="modal-body">
+                    <form id="form">
+                        <fieldset id="SubmitForm">
+                            @Html.HiddenFor(u => u.Id, new { @Id = "Id" })
+                            <div class="form-group">
+                                @Html.TextBoxFor(u => u.Username, new { @Id = "User", @class = "form-control", @placeholder = "Usuario" })
+                            </div>
+                            <div class="form-group">
+                                @Html.TextBoxFor(u => u.Password, new { @Id = "Pass", @class = "form-control", @type = "password", @placeholder = "Password" })
+                            </div>
+                            <div class="form-group">
+                                @Html.DropDownListFor(u => u.IdPersona, ViewBag.ListPersona as SelectList, "--seleccione--", new { @Id = "DropDwn", @class = "form-control" })
+                            </div>
+                            <div class="form-group">
+                                <a href="#" class="btn btn-primary" id="SaveUser">Guardar</a>
+                            </div>
+                        </fieldset>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="DeleteConfirmacion">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <a href="#" class="close" data-dismiss="modal">&times;</a>
+                    <h4>Eliminar Usuario</h4>
+                </div>
+                <div class="modal-body">
+                    @Html.HiddenFor(u => u.Id, new { @Id = "Id" })
+                    @Html.LabelFor(u => u.Username, new { @Id = "Usuario", @class = "form-control", @placeholder = "Usuario" })
+                    <h4> Esta Seguro? de Eliminar este Registro </h4>
+                </div>
+                <div class="modal-footer">
+                    <a href="#" class="btn btn-primary" onclick="ConfirmDelete()">Confirmar</a>
+                    <a href="#" class="btn btn-danger" data-dismiss="modal">Cancelar</a>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
 </div>
+<script>
+
+    function AddNewUser(UserId) {
+        $("#form")[0].reset();
+        $("#Id").val(0);
+        $("#ModalTitle").html("Registro de Usuario")
+        $("#MyModal").modal();
+    }
+
+    function EditUsuario(UserId) {
+        var url = "/Usuario/GetUserById?UserId=" + UserId;
+        $("#ModalTitle").html("Actualizar Usuario")
+        $("#MyModal").modal();
+        $.ajax({
+            type: "GET",
+            url: url,
+            success: function (data) {
+                var obj = JSON.parse(data);
+                $("#Id").val(obj.Id);
+                $("#User").val(obj.Username);
+                $("#Pass").val(obj.Password);
+                $("#DropDwn").val(obj.IdPersona);
+                $("#DropDwn option:selected").text(obj.Personas.Nombres);
+
+            }
+        });
+    }
+
+    $("#SaveUser").click(function () {
+       
+        var data = $("#SubmitForm").serialize();
+        $.ajax({
+            type: "Post",
+            url: "/Usuario/SaveDataInDatabase",
+            data: data,
+            success: function (result) {
+                if (result == true) {
+                    alert("Registro con Exito!..");
+                    window.location.href = "/Usuario/Usuario";
+                    $("#MyModal").modal("hide");
+                } else {
+                    alert("Usuario ya Existe!.. O.. Los campos estan vacios!...Verifique sus Datos");
+                }
+                
+                  
+            }
+           
+        })
+    });
+
+    function DeleteUsuario(UserId) {
+        $("#Id").val(UserId);
+        $("#DeleteConfirmacion").modal("show");
+        var url = "/Usuario/GetUserById?UserId=" + UserId;
+        $.ajax({
+            type: "GET",
+            url: url,
+            success: function (data) {
+                var obj = JSON.parse(data);
+                $("#Usuario").text(obj.Username);
+
+            }
+        });
+        
+    }
+    function ConfirmDelete() {
+        var Id = $("#Id").val();
+        $.ajax({
+            type: "POST",
+            url: "/Usuario/DeleteUser?UserId=" + Id,
+            success: function (result) {
+                window.location.href = "/Usuario/Usuario";
+                $("#DeleteConfirmacion").modal("hide");
+
+            }
+        });
+
+    }
+
+</script>
